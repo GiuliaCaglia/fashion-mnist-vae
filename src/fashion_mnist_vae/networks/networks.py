@@ -1,28 +1,53 @@
-import torch
+from torch import nn
 
 
-class Encoder(torch.nn.Module):
-    def __init__(self):
+class Encoder(nn.Module):
+    SHRINKAGE = 7
+
+    def __init__(self, thickness: int, latent_space: int):
         super().__init__()
-        self.mainline = torch.nn.Sequential(
-            torch.nn.Conv2d(in_channels=1, out_channels=8, kernel_size=3, padding=1),
-            torch.nn.ReLU(),
-            torch.nn.Conv2d(in_channels=8, out_channels=8, kernel_size=3, padding=1),
-            torch.nn.ReLU(),
-            torch.nn.Conv2d(in_channels=8, out_channels=8, kernel_size=3, padding=1),
-            torch.nn.ReLU(),
-            torch.nn.BatchNorm2d(num_features=8),
-            torch.nn.MaxPool2d(kernel_size=2),
+        self.mainline = nn.Sequential(
+            nn.Conv2d(in_channels=1, out_channels=thickness, kernel_size=3, padding=1),
+            nn.LeakyReLU(),
+            nn.Conv2d(
+                in_channels=thickness, out_channels=thickness, kernel_size=3, padding=1
+            ),
+            nn.LeakyReLU(),
+            nn.Conv2d(
+                in_channels=thickness, out_channels=thickness, kernel_size=3, padding=1
+            ),
+            nn.LeakyReLU(),
+            nn.BatchNorm2d(num_features=thickness),
+            nn.MaxPool2d(kernel_size=2),
+            # Additional layer
+            nn.Conv2d(
+                in_channels=thickness, out_channels=thickness, kernel_size=3, padding=1
+            ),
+            nn.LeakyReLU(),
+            nn.Conv2d(
+                in_channels=thickness, out_channels=thickness, kernel_size=3, padding=1
+            ),
+            nn.LeakyReLU(),
+            nn.Conv2d(
+                in_channels=thickness, out_channels=thickness, kernel_size=3, padding=1
+            ),
+            nn.LeakyReLU(),
+            nn.BatchNorm2d(num_features=thickness),
+            nn.MaxPool2d(kernel_size=2),
         )
 
-        self.mean_out = torch.nn.Sequential(
-            torch.nn.Flatten(),
-            torch.nn.Linear(in_features=8 * 14 * 14, out_features=128),
-            torch.nn.ReLU(),
+        self.mean_out = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(
+                in_features=thickness * self.SHRINKAGE**2, out_features=latent_space
+            ),
+            nn.LeakyReLU(),
         )
-        self.std_out = torch.nn.Sequential(
-            torch.nn.Flatten(),
-            torch.nn.Linear(in_features=8 * 14 * 14, out_features=128),
+        self.std_out = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(
+                in_features=thickness * self.SHRINKAGE**2, out_features=latent_space
+            ),
         )
 
     def forward(self, X):
@@ -34,32 +59,54 @@ class Encoder(torch.nn.Module):
         return mean  # , std
 
 
-class Decoder(torch.nn.Module):
-    def __init__(self):
+class Decoder(nn.Module):
+    SHRINKAGE = 7
+
+    def __init__(self, thickness: int, latent_space: int):
         super().__init__()
-        self.adapter = torch.nn.Sequential(
-            torch.nn.Linear(in_features=128, out_features=8 * 14 * 14),
-            torch.nn.ReLU(),
+        self.thickness = thickness
+        self.adapter = nn.Sequential(
+            nn.Linear(
+                in_features=latent_space, out_features=thickness * self.SHRINKAGE**2
+            ),
+            nn.LeakyReLU(),
         )
-        self.mainline = torch.nn.Sequential(
-            torch.nn.UpsamplingNearest2d(scale_factor=2),
-            torch.nn.BatchNorm2d(num_features=8),
-            torch.nn.ConvTranspose2d(
-                in_channels=8, out_channels=8, kernel_size=3, padding=1
+        self.mainline = nn.Sequential(
+            nn.UpsamplingNearest2d(scale_factor=2),
+            nn.BatchNorm2d(num_features=thickness),
+            nn.ConvTranspose2d(
+                in_channels=thickness, out_channels=thickness, kernel_size=3, padding=1
             ),
-            torch.nn.ReLU(),
-            torch.nn.ConvTranspose2d(
-                in_channels=8, out_channels=8, kernel_size=3, padding=1
+            nn.LeakyReLU(),
+            nn.ConvTranspose2d(
+                in_channels=thickness, out_channels=thickness, kernel_size=3, padding=1
             ),
-            torch.nn.ReLU(),
-            torch.nn.ConvTranspose2d(
-                in_channels=8, out_channels=1, kernel_size=3, padding=1
+            nn.LeakyReLU(),
+            nn.ConvTranspose2d(
+                in_channels=thickness, out_channels=thickness, kernel_size=3, padding=1
             ),
-            torch.nn.ReLU(),
+            nn.LeakyReLU(),
+            # Additional layer
+            nn.UpsamplingNearest2d(scale_factor=2),
+            nn.BatchNorm2d(num_features=thickness),
+            nn.ConvTranspose2d(
+                in_channels=thickness, out_channels=thickness, kernel_size=5, padding=2
+            ),
+            nn.LeakyReLU(),
+            nn.ConvTranspose2d(
+                in_channels=thickness, out_channels=thickness, kernel_size=5, padding=2
+            ),
+            nn.LeakyReLU(),
+            nn.ConvTranspose2d(
+                in_channels=thickness, out_channels=1, kernel_size=3, padding=1
+            ),
+            nn.LeakyReLU(),
         )
 
     def forward(self, X):
         out = X.clone()
-        out = self.adapter(out).reshape(-1, 8, 14, 14)
+        out = self.adapter(out).reshape(
+            -1, self.thickness, self.SHRINKAGE, self.SHRINKAGE
+        )
         out = self.mainline(out)
         return out

@@ -1,21 +1,22 @@
-import torch
-from tqdm import tqdm
+from torch import nn, optim
+
+from fashion_mnist_vae import networks
 
 
-class AutoEncoder(torch.nn.Module):
+class AutoEncoder(nn.Module):
     def __init__(self):
         super().__init__()
-        self.mainline = torch.nn.Sequential(Encoder(), Decoder())
+        self.mainline = nn.Sequential(networks.Encoder(), networks.Decoder())
 
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=2e-2)
-        self.criterion = torch.nn.MSELoss()
+        self.optimizer = optim.Adam(self.parameters(), lr=1e-2)
+        self.criterion = nn.MSELoss()
 
     def forward(self, X):
         return self.mainline(X)
 
     def train(self, data_loader, epochs):
         losses = []
-        for epoch in tqdm(range(epochs), total=epochs):
+        for epoch in range(epochs):
             epoch_loss = 0
             for batch in data_loader:
                 self.optimizer.zero_grad()
@@ -25,5 +26,6 @@ class AutoEncoder(torch.nn.Module):
                 self.optimizer.step()
                 epoch_loss += float(loss) / len(batch)
             losses.append(epoch_loss)
+            print("Epoch: {}/{}; Loss: {}".format(epoch + 1, epochs, epoch_loss))
 
         return losses
