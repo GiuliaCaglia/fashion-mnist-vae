@@ -8,7 +8,7 @@ from minio import Minio
 
 def get_client() -> Minio:
     return Minio(
-        endpoint="minio:9000",
+        endpoint="localhost:9000",
         access_key="minioadmin",
         secret_key="minioadmin",
         secure=False,

@@ -29,7 +29,7 @@ def main(device: str = "cpu", batch_size: int = 128, epochs: int = 50):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        prog="Autoencoder Training Script",
+        # prog="Autoencoder Training Script",
         description="Train Autoencoder",
         epilog="Thank you for using me!",
     )
@@ -39,6 +39,6 @@ if __name__ == "__main__":
     )
     parser.add_argument("-e", "--epochs", type=str, dest="epochs", action="store")
 
-    kwargs = vars(parser.parse_args(sys.argv))
+    kwargs = vars(parser.parse_args(sys.argv[1:]))
 
     main(**kwargs)
