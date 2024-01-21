@@ -1,6 +1,7 @@
 from io import BytesIO
 from typing import Tuple
 
+import numpy.typing as NPT
 import pandas as pd
 from minio import Minio
 
@@ -50,9 +51,9 @@ def to_parquet(
     client.put_object(bucket, key, buffer, buffer_len)
 
 
-def get_data() -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def get_data() -> Tuple[NPT.NDArray, NPT.NDArray, NPT.NDArray, NPT.NDArray]:
     train = read_parquet(TRAIN_KEY)
     test = read_parquet(TEST_KEY)
-    X_train, y_train = train.iloc[:, 1:].to_numpy(), train.iloc[:, 0].to_numpy()
-    X_test, y_test = test.iloc[:, 1:].to_numpy(), test.iloc[:, 0].to_numpy()
-    return X_train, y_train, X_test, y_test
+    x_train, y_train = train.iloc[:, 1:].to_numpy(), train.iloc[:, 0].to_numpy()
+    x_test, y_test = test.iloc[:, 1:].to_numpy(), test.iloc[:, 0].to_numpy()
+    return x_train, y_train, x_test, y_test
