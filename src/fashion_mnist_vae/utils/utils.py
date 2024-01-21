@@ -4,6 +4,7 @@ from typing import Tuple
 import numpy.typing as NPT
 import pandas as pd
 from minio import Minio
+from PIL import Image
 
 
 def get_client() -> Minio:
@@ -57,3 +58,15 @@ def get_data() -> Tuple[NPT.NDArray, NPT.NDArray, NPT.NDArray, NPT.NDArray]:
     x_train, y_train = train.iloc[:, 1:].to_numpy(), train.iloc[:, 0].to_numpy()
     x_test, y_test = test.iloc[:, 1:].to_numpy(), test.iloc[:, 0].to_numpy()
     return x_train, y_train, x_test, y_test
+
+
+def image_grid(imgs, rows, cols):
+    assert len(imgs) == rows * cols
+
+    w, h = imgs[0].shape
+    grid = Image.new("RGB", size=(cols * w, rows * h))
+
+    for i, img in enumerate(imgs):
+        image = Image.fromarray(img)
+        grid.paste(image, box=(i % cols * w, i // cols * h))
+    return grid.resize((200, 200))

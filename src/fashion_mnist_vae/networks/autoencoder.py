@@ -1,14 +1,20 @@
 from torch import nn, optim
 
-from fashion_mnist_vae import networks
+from fashion_mnist_vae.networks import networks
 
 
 class AutoEncoder(nn.Module):
+    THICKNESS = 16
+    LATENT_SPACE = 256
+
     def __init__(self):
         super().__init__()
-        self.mainline = nn.Sequential(networks.Encoder(), networks.Decoder())
+        self.mainline = nn.Sequential(
+            networks.Encoder(thickness=self.THICKNESS, latent_space=self.LATENT_SPACE),
+            networks.Decoder(thickness=self.THICKNESS, latent_space=self.LATENT_SPACE),
+        )
 
-        self.optimizer = optim.Adam(self.parameters(), lr=1e-2)
+        self.optimizer = optim.Adam(self.parameters(), lr=5e-3)
         self.criterion = nn.MSELoss()
 
     def forward(self, X):
