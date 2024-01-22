@@ -1,6 +1,6 @@
-from torch import nn, optim
 import pyro
 import pyro.distributions as dist
+from torch import nn, optim
 
 from fashion_mnist_vae.networks import networks
 
@@ -51,5 +51,3 @@ class VariationalAutoEncoder(nn.Module):
         with pyro.plate("data", len(X)):
             z_loc, z_scale = self.encoder(X)
             pyro.sample("latent_space", dist.Normal(z_loc, z_scale).to_event(1))
-
-
