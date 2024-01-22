@@ -1,4 +1,6 @@
 from torch import nn, optim
+import pyro
+import pyro.distributions as dist
 
 from fashion_mnist_vae.networks import networks
 
@@ -35,3 +37,19 @@ class AutoEncoder(nn.Module):
             print("Epoch: {}/{}; Loss: {}".format(epoch + 1, epochs, epoch_loss))
 
         return losses
+
+
+class VariationalAutoEncoder(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.encoder = networks.Encoder()
+        self.decoder = networks.Decoder()
+
+    def guide(self, X):
+        pyro.module("encoder", self.encoder)
+
+        with pyro.plate("data", len(X)):
+            z_loc, z_scale = self.encoder(X)
+            pyro.sample("latent_space", dist.Normal(z_loc, z_scale).to_event(1))
+
+
