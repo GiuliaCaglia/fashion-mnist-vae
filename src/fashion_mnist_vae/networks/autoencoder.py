@@ -64,13 +64,19 @@ class VariationalAutoEncoder(nn.Module):
 
     def model(self, x):
         pyro.module("decoder", self.decoder)
-        z_loc = torch.zeros(len(x), self.LATENT_SPACE).to(self.decoder.mainline[1].weight.device.type)
-        z_scale = torch.ones(len(x), self.LATENT_SPACE).to(self.decoder.mainline[1].weight.device.type)
+        z_loc = torch.zeros(len(x), self.LATENT_SPACE).to(
+            self.decoder.mainline[1].weight.device.type
+        )
+        z_scale = torch.ones(len(x), self.LATENT_SPACE).to(
+            self.decoder.mainline[1].weight.device.type
+        )
 
         with pyro.plate("data", len(x), subsample_size=len(x)):
             z = pyro.sample("latent_space", dist.Normal(z_loc, z_scale).to_event(1))
             loc_out = self.decoder(z)
-            pyro.sample("obs", dist.ContinuousBernoulli(probs=loc_out).to_event(3), obs=x)
+            pyro.sample(
+                "obs", dist.ContinuousBernoulli(probs=loc_out).to_event(3), obs=x
+            )
 
             return loc_out
 
