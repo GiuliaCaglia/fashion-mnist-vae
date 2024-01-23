@@ -97,3 +97,46 @@ class VariationalAutoEncoder(nn.Module):
             losses.append(epoch_loss)
 
         return losses
+
+
+class ConditionalVariationalAutoencoder(VariationalAutoEncoder):
+    def model(self, x, y):
+        pyro.module("decoder", self.decoder)
+        z_loc = torch.stack([y for _ in range(self.LATENT_SPACE)], dim=-1).squeeze()
+        z_scale = torch.ones(len(x), self.LATENT_SPACE).to(
+            self.decoder.mainline[1].weight.device.type
+        )
+
+        with pyro.plate("data", len(x), subsample_size=len(x)):
+            z = pyro.sample("latent_space", dist.Normal(z_loc, z_scale).to_event(1))
+            loc_out = self.decoder(z)
+            pyro.sample(
+                "obs", dist.ContinuousBernoulli(probs=loc_out).to_event(3), obs=x
+            )
+
+            return loc_out
+
+    def guide(self, x, y):
+        pyro.module("encoder", self.encoder)
+
+        with pyro.plate("data", len(x), subsample_size=len(x)):
+            z_loc, z_scale = self.encoder(x)
+            pyro.sample("latent_space", dist.Normal(z_loc, z_scale).to_event(1))
+
+    def train(self, data_loader, epochs) -> List[float]:
+        pyro.clear_param_store()
+        model = self.model
+        guide = self.guide
+        criterion = pyro.infer.Trace_ELBO()
+        optim = pyro.optim.Adam({"lr": 5e-4})
+        svi = pyro.infer.SVI(model=model, guide=guide, loss=criterion, optim=optim)
+        losses = []
+        for epoch in range(epochs):
+            epoch_loss = 0
+            for x, y in data_loader:
+                loss = svi.step(x, y)
+                epoch_loss += loss / len(x)
+            print(f"Epoch: {epoch+1}/{epochs}; Loss: {epoch_loss}")
+            losses.append(epoch_loss)
+
+        return losses
