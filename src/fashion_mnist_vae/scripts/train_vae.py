@@ -35,7 +35,7 @@ def main(epochs: int, device: Literal["cpu", "cuda"], debug: bool):
     sampler = pyro.infer.Predictive(
         model=model.model, guide=model.guide, num_samples=100
     )
-    samples = sampler.forward(x[:25])["latent_space"].mean(axis=0)
+    samples = sampler.forward(x[:25].to(device))["latent_space"].mean(axis=0)
     decoded_samples = model.decoder(samples).reshape(25, 28, 28) * 255.0
     image_grid = utils.image_grid(decoded_samples.cpu().detach().numpy(), 5, 5)
 
