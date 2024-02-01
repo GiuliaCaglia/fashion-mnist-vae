@@ -100,12 +100,14 @@ class VariationalAutoEncoder(nn.Module):
 
 
 class ConditionalVariationalAutoencoder(VariationalAutoEncoder):
+    def __init__(self):
+        super().__init__()
+        self.prior_net = networks.Encoder()
+
     def model(self, x, y):
         pyro.module("decoder", self.decoder)
-        z_loc = torch.stack([y for _ in range(self.LATENT_SPACE)], dim=-1).squeeze()
-        z_scale = torch.ones(len(x), self.LATENT_SPACE).to(
-            self.decoder.mainline[1].weight.device.type
-        )
+        pyro.module("prior_net", self.prior_net)
+        z_loc, z_scale = self.prior_net(x, y) # TODO: I think I will need to concatenate first
 
         with pyro.plate("data", len(x), subsample_size=len(x)):
             z = pyro.sample("latent_space", dist.Normal(z_loc, z_scale).to_event(1))
@@ -120,7 +122,8 @@ class ConditionalVariationalAutoencoder(VariationalAutoEncoder):
         pyro.module("encoder", self.encoder)
 
         with pyro.plate("data", len(x), subsample_size=len(x)):
-            z_loc, z_scale = self.encoder(x)
+            z_loc, z_scale = self.encoder(x) # TODO: In the documentation there
+            # is a case distinction between y being passed and not
             pyro.sample("latent_space", dist.Normal(z_loc, z_scale).to_event(1))
 
     def train(self, data_loader, epochs) -> List[float]:
