@@ -5,38 +5,36 @@ import sys
 
 import matplotlib.pyplot as plt
 import torch
-from PIL import Image
 from torch.utils import data
+from torchvision.datasets import FashionMNIST
+from torchvision.transforms import ToTensor
 
 from fashion_mnist_vae.networks import autoencoder
 from fashion_mnist_vae.utils import constants, utils
 
 
-def main(
-    device: str = "cpu", batch_size: int = 128, epochs: int = 50, debug: bool = False
-):
+def main(device: str = "cpu", batch_size: int = 128, epochs: int = 50):
     # Load Data
     print("Loading data...")
-    x_train, _, x_test, _ = (
-        torch.tensor(i, dtype=torch.float32) for i in utils.get_data()
+    dataset = FashionMNIST(
+        root=constants.ASSETS_DIR, transform=ToTensor, download=True, train=True
     )
+    samples_x = torch.cat([dataset[i][0] for i in range(25)], dim=0)
 
     # Preprocess Data
     print("Preprocessing data...")
-    x = torch.cat([x_train, x_test], dim=0).reshape(-1, 1, 28, 28) / 255.0
-    x = x[:100] if debug else x
     data_loader: data.DataLoader = data.DataLoader(
-        x.to(device), shuffle=True, batch_size=batch_size
+        dataset=dataset, shuffle=True, batch_size=batch_size
     )
 
     # Initialize Model
     print("Initializing model...")
-    model = autoencoder.AutoEncoder().to(device)
+    model = autoencoder.AutoEncoder(device=device)
     losses = model.train(data_loader=data_loader, epochs=epochs)
 
     # Predict first 25 Images and create image grid
     test_images = (
-        model(x[:25].to(device)).cpu().detach().numpy().reshape(-1, 28, 28) * 255.0
+        model(samples_x.to(device)).cpu().detach().numpy().reshape(-1, 28, 28) * 255.0
     )
     image_grid = utils.image_grid(test_images, 5, 5)
 
@@ -63,7 +61,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "-e", "--epochs", type=int, dest="epochs", action="store", default=1
     )
-    parser.add_argument("--debug", dest="debug", action="store_true", default=False)
 
     kwargs = vars(parser.parse_args(sys.argv[1:]))
 

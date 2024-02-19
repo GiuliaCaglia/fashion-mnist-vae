@@ -17,6 +17,7 @@ matplotlib = "^3.8.2"
 pillow = "^10.2.0"
 pyro-ppl = "^1.8.6"
 seaborn = "^0.13.2"
+torchvision = "^0.17.0"
 
 
 [tool.poetry.group.dev.dependencies]

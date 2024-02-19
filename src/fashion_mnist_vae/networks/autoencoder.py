@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Literal
 
 import pyro
 import pyro.distributions as dist
@@ -12,7 +12,7 @@ class AutoEncoder(nn.Module):
     THICKNESS = 16
     LATENT_SPACE = 256
 
-    def __init__(self):
+    def __init__(self, device: Literal["cpu", "cuda"] = "cpu"):
         super().__init__()
         self.mainline = nn.Sequential(
             networks.Encoder(thickness=self.THICKNESS, latent_space=self.LATENT_SPACE),
@@ -21,9 +21,10 @@ class AutoEncoder(nn.Module):
 
         self.optimizer = optim.Adam(self.parameters(), lr=5e-3)
         self.criterion = nn.MSELoss()
+        self.device = device
 
     def forward(self, X):
-        return self.mainline(X)
+        return self.mainline(X.to(self.device))
 
     def train(self, data_loader, epochs):
         losses = []
@@ -31,7 +32,7 @@ class AutoEncoder(nn.Module):
             epoch_loss = 0
             for batch in data_loader:
                 self.optimizer.zero_grad()
-                X_hat = self.forward(batch)
+                X_hat = self.forward(batch.to(self.device))
                 loss = self.criterion(X_hat, batch)
                 loss.backward()
                 self.optimizer.step()
@@ -46,16 +47,18 @@ class VariationalAutoEncoder(nn.Module):
     LATENT_SPACE = 256
     THICKNESS = 16
 
-    def __init__(self):
+    def __init__(self, device: Literal["cpu", "cuda"] = "cpu"):
         super().__init__()
         self.encoder = networks.Encoder(
             latent_space=self.LATENT_SPACE, thickness=self.THICKNESS, return_std=True
-        )
+        ).to(device)
         self.decoder = networks.Decoder(
             latent_space=self.LATENT_SPACE, thickness=self.THICKNESS
-        )
+        ).to(device)
+        self.device = device
 
     def guide(self, x):
+        x = x.to(self.device)
         pyro.module("encoder", self.encoder)
 
         with pyro.plate("data", len(x), subsample_size=len(x)):
@@ -63,13 +66,10 @@ class VariationalAutoEncoder(nn.Module):
             pyro.sample("latent_space", dist.Normal(z_loc, z_scale).to_event(1))
 
     def model(self, x):
+        x = x.to(self.device)
         pyro.module("decoder", self.decoder)
-        z_loc = torch.zeros(len(x), self.LATENT_SPACE).to(
-            self.decoder.mainline[1].weight.device.type
-        )
-        z_scale = torch.ones(len(x), self.LATENT_SPACE).to(
-            self.decoder.mainline[1].weight.device.type
-        )
+        z_loc = torch.zeros(len(x), self.LATENT_SPACE).to(self.device)
+        z_scale = torch.ones(len(x), self.LATENT_SPACE).to(self.device)
 
         with pyro.plate("data", len(x), subsample_size=len(x)):
             z = pyro.sample("latent_space", dist.Normal(z_loc, z_scale).to_event(1))
@@ -90,9 +90,9 @@ class VariationalAutoEncoder(nn.Module):
         losses = []
         for epoch in range(epochs):
             epoch_loss = 0
-            for batch in data_loader:
-                loss = svi.step(batch)
-                epoch_loss += loss / len(batch)
+            for x, _ in data_loader:
+                loss = svi.step(x.to(self.device))
+                epoch_loss += loss / len(x)
             print(f"Epoch: {epoch+1}/{epochs}; Loss: {epoch_loss}")
             losses.append(epoch_loss)
 
@@ -100,13 +100,24 @@ class VariationalAutoEncoder(nn.Module):
 
 
 class ConditionalVariationalAutoencoder(VariationalAutoEncoder):
-    def __init__(self):
-        super().__init__()
-        self.encoder = networks.Encoder(thickness=self.THICKNESS, latent_space=self.LATENT_SPACE, return_std=True,
-                                          in_channel=2)
-        self.prior_net = networks.Encoder(thickness=self.THICKNESS, latent_space=self.LATENT_SPACE, return_std=True, in_channel=2)
+    def __init__(self, device: Literal["cpu", "cuda"] = "cpu"):
+        super().__init__(device=device)
+        self.encoder = networks.Encoder(
+            thickness=self.THICKNESS,
+            latent_space=self.LATENT_SPACE,
+            return_std=True,
+            in_channel=2,
+        ).to(device)
+        self.prior_net = networks.Encoder(
+            thickness=self.THICKNESS,
+            latent_space=self.LATENT_SPACE,
+            return_std=True,
+            in_channel=2,
+        ).to(device)
 
     def model(self, x, y):
+        x = x.to(self.device)
+        y = y.to(self.device)
         pyro.module("decoder", self.decoder)
         pyro.module("prior_net", self.prior_net)
 
@@ -124,6 +135,8 @@ class ConditionalVariationalAutoencoder(VariationalAutoEncoder):
             return loc_out
 
     def guide(self, x, y):
+        x = x.to(self.device)
+        y = y.to(self.device)
         pyro.module("encoder", self.encoder)
         xy = torch.cat([x, y.reshape(-1, 1, 1, 1) * torch.ones_like(x)], dim=1)
 
@@ -134,6 +147,8 @@ class ConditionalVariationalAutoencoder(VariationalAutoEncoder):
             pyro.sample("latent_space", dist.Normal(z_loc, z_scale).to_event(1))
 
     def forward(self, x, y):
+        x = x.to(self.device)
+        y = y.to(self.device)
         xy = torch.cat([x, y.reshape(-1, 1, 1, 1) * torch.ones_like(x)], dim=1)
         compressed_mean, _ = self.encoder(xy)
         reconstructed = self.decoder(compressed_mean)
@@ -145,25 +160,13 @@ class ConditionalVariationalAutoencoder(VariationalAutoEncoder):
         model = self.model
         guide = self.guide
         criterion = pyro.infer.Trace_ELBO()
-        # elbo = lambda m, g, x, y: pyro.infer.Trace_ELBO().differentiable_loss(m, g, x, y)
-        # ce = torch.nn.CrossEntropyLoss()
-        # with pyro.poutine.trace(param_only=True) as param_capture:
-        #     x, y = [(a, b) for a, b in data_loader][0]
-        #     _ = elbo(model, guide, x, y)
-        #     params = set(site["value"].unconstrained() for site in param_capture.trace.nodes.values())
-        # optimizer = torch.optim.Adam(params, lr=5e-4, betas=(0.90, 0.999))
         optim = pyro.optim.Adam({"lr": 5e-4})
         svi = pyro.infer.SVI(model=model, guide=guide, optim=optim, loss=criterion)
         losses = []
         for epoch in range(epochs):
             epoch_loss = 0
             for x, y in data_loader:
-                # optimizer.zero_grad()
-                # xy = torch.cat([x, y.reshape(-1, 1, 1, 1) * torch.ones_like(x)], dim=1)
-                # loss = elbo(model, guide, x, y) #+ ce(self.forward(x, y), x)
-                # loss.backward()
-                # optimizer.step()
-                loss = svi.step(x, y)
+                loss = svi.step(x.to(self.device), y.to(self.device))
                 epoch_loss += float(loss) / len(x)
             print(f"Epoch: {epoch+1}/{epochs}; Loss: {epoch_loss}")
             losses.append(epoch_loss)
