@@ -102,12 +102,17 @@ class VariationalAutoEncoder(nn.Module):
 class ConditionalVariationalAutoencoder(VariationalAutoEncoder):
     def __init__(self):
         super().__init__()
-        self.prior_net = networks.Encoder()
+        self.encoder = networks.Encoder(thickness=self.THICKNESS, latent_space=self.LATENT_SPACE, return_std=True,
+                                          in_channel=2)
+        self.prior_net = networks.Encoder(thickness=self.THICKNESS, latent_space=self.LATENT_SPACE, return_std=True, in_channel=2)
 
     def model(self, x, y):
         pyro.module("decoder", self.decoder)
         pyro.module("prior_net", self.prior_net)
-        z_loc, z_scale = self.prior_net(x, y) # TODO: I think I will need to concatenate first
+
+        z_base = y.reshape(-1, 1, 1, 1) * torch.ones_like(x)
+        z_base = torch.cat([x, z_base], dim=1)
+        z_loc, z_scale = self.prior_net(z_base)
 
         with pyro.plate("data", len(x), subsample_size=len(x)):
             z = pyro.sample("latent_space", dist.Normal(z_loc, z_scale).to_event(1))
@@ -120,25 +125,46 @@ class ConditionalVariationalAutoencoder(VariationalAutoEncoder):
 
     def guide(self, x, y):
         pyro.module("encoder", self.encoder)
+        xy = torch.cat([x, y.reshape(-1, 1, 1, 1) * torch.ones_like(x)], dim=1)
 
         with pyro.plate("data", len(x), subsample_size=len(x)):
-            z_loc, z_scale = self.encoder(x) # TODO: In the documentation there
-            # is a case distinction between y being passed and not
+            z_loc, z_scale = self.encoder(xy)  # In the documentation there
+            # is a case distinction between y being passed and not -> For our purposes, we can assume y to always be
+            # given because we want to generate a picture of type y
             pyro.sample("latent_space", dist.Normal(z_loc, z_scale).to_event(1))
+
+    def forward(self, x, y):
+        xy = torch.cat([x, y.reshape(-1, 1, 1, 1) * torch.ones_like(x)], dim=1)
+        compressed_mean, _ = self.encoder(xy)
+        reconstructed = self.decoder(compressed_mean)
+
+        return reconstructed
 
     def train(self, data_loader, epochs) -> List[float]:
         pyro.clear_param_store()
         model = self.model
         guide = self.guide
         criterion = pyro.infer.Trace_ELBO()
+        # elbo = lambda m, g, x, y: pyro.infer.Trace_ELBO().differentiable_loss(m, g, x, y)
+        # ce = torch.nn.CrossEntropyLoss()
+        # with pyro.poutine.trace(param_only=True) as param_capture:
+        #     x, y = [(a, b) for a, b in data_loader][0]
+        #     _ = elbo(model, guide, x, y)
+        #     params = set(site["value"].unconstrained() for site in param_capture.trace.nodes.values())
+        # optimizer = torch.optim.Adam(params, lr=5e-4, betas=(0.90, 0.999))
         optim = pyro.optim.Adam({"lr": 5e-4})
-        svi = pyro.infer.SVI(model=model, guide=guide, loss=criterion, optim=optim)
+        svi = pyro.infer.SVI(model=model, guide=guide, optim=optim, loss=criterion)
         losses = []
         for epoch in range(epochs):
             epoch_loss = 0
             for x, y in data_loader:
+                # optimizer.zero_grad()
+                # xy = torch.cat([x, y.reshape(-1, 1, 1, 1) * torch.ones_like(x)], dim=1)
+                # loss = elbo(model, guide, x, y) #+ ce(self.forward(x, y), x)
+                # loss.backward()
+                # optimizer.step()
                 loss = svi.step(x, y)
-                epoch_loss += loss / len(x)
+                epoch_loss += float(loss) / len(x)
             print(f"Epoch: {epoch+1}/{epochs}; Loss: {epoch_loss}")
             losses.append(epoch_loss)
 

@@ -16,12 +16,17 @@ fastparquet = "^2023.10.1"
 matplotlib = "^3.8.2"
 pillow = "^10.2.0"
 pyro-ppl = "^1.8.6"
+seaborn = "^0.13.2"
 
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.12.1"
 isort = "^5.13.2"
 mypy = "^1.8.0"
+
+
+[tool.poetry.group.local-dev.dependencies]
+jupyterlab = "^4.1.1"
 
 [build-system]
 requires = ["poetry-core"]

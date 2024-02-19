@@ -52,7 +52,7 @@ def main(epochs: int, device: Literal["cpu", "cuda"], conditional: bool, debug: 
 
     # Train Model
     print("Initializing model...")
-    model = autoencoder.ConditionalVariationalAutoencoder().to(device) if conditional else autoencoder.VariationalAutoEncoder.to(device)
+    model = autoencoder.ConditionalVariationalAutoencoder().to(device) if conditional else autoencoder.VariationalAutoEncoder().to(device)
     losses = model.train(data_loader=data_loader, epochs=epochs)
     sampler = pyro.infer.Predictive(
         model=model.model, guide=model.guide, num_samples=100
