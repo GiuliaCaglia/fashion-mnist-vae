@@ -17,7 +17,7 @@ def main(device: str = "cpu", batch_size: int = 128, epochs: int = 50):
     # Load Data
     print("Loading data...")
     dataset = FashionMNIST(
-        root=constants.ASSETS_DIR, transform=ToTensor, download=True, train=True
+        root=constants.ASSETS_DIR, transform=utils.to_tensor, download=True, train=True
     )
     samples_x = torch.cat([dataset[i][0] for i in range(25)], dim=0)
 
@@ -39,11 +39,12 @@ def main(device: str = "cpu", batch_size: int = 128, epochs: int = 50):
     image_grid = utils.image_grid(test_images, 5, 5)
 
     # Save assets
-    constants.ASSETS_DIR.mkdir(exist_ok=True)
+    directory = constants.ASSETS_DIR.joinpath("autoencoder")
+    directory.mkdir(exist_ok=True, parents=True)
     plt.plot(losses)
-    plt.savefig(constants.LOSS_PLOT.as_posix())
-    torch.save(model, constants.MODEL)
-    image_grid.save(constants.EXAMPLES)
+    plt.savefig(directory.joinpath(constants.LOSS_PLOT).as_posix())
+    torch.save(model, directory.joinpath(constants.MODEL))
+    image_grid.save(directory.joinpath(constants.EXAMPLES))
 
 
 if __name__ == "__main__":

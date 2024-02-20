@@ -4,12 +4,12 @@ import argparse
 import sys
 from typing import Literal
 
+import dill
 import matplotlib.pyplot as plt
 import pyro.infer
 import torch
 from torch.utils import data
 from torchvision.datasets import FashionMNIST
-from torchvision.transforms import ToTensor
 
 from fashion_mnist_vae.networks import autoencoder
 from fashion_mnist_vae.utils import constants, utils
@@ -19,10 +19,10 @@ def main(epochs: int, device: Literal["cpu", "cuda"], conditional: bool):
     # Get Data
     print("Getting Data...")
     dataset = FashionMNIST(
-        root=constants.ASSETS_DIR, transform=ToTensor(), download=True, train=True
+        root=constants.ASSETS_DIR, transform=utils.to_tensor, download=True, train=True
     )
     samples_y = torch.tensor([dataset[i][1] for i in range(25)])
-    samples_x = torch.cat([dataset[i][0] for i in range(25)], dim=0)
+    samples_x = torch.stack([dataset[i][0] for i in range(25)], dim=0)
 
     # Preprocess Data
     print("Creating data loader...")
@@ -49,10 +49,14 @@ def main(epochs: int, device: Literal["cpu", "cuda"], conditional: bool):
     image_grid = utils.image_grid(decoded_samples.cpu().detach().numpy(), 5, 5)
 
     # Store Artifacts
-    constants.ASSETS_DIR.mkdir(exist_ok=True)
+    directory_name = "vae" + ("_con" if conditional else "")
+    directory = constants.ASSETS_DIR.joinpath(directory_name)
+    directory.mkdir(exist_ok=True, parents=True)
     plt.plot(losses)
-    plt.savefig(constants.VAE_LOSS_PLOT.as_posix())
-    image_grid.save(constants.VAE_EXAMPLES)
+    plt.savefig(directory.joinpath(constants.VAE_LOSS_PLOT).as_posix())
+    with directory.joinpath(constants.MODEL).open("rb") as f:
+        dill.dump(sampler, f)
+    image_grid.save(directory.joinpath(constants.VAE_EXAMPLES))
 
 
 if __name__ == "__main__":
