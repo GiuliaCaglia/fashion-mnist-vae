@@ -54,8 +54,8 @@ def main(epochs: int, device: Literal["cpu", "cuda"], conditional: bool):
     directory.mkdir(exist_ok=True, parents=True)
     plt.plot(losses)
     plt.savefig(directory.joinpath(constants.VAE_LOSS_PLOT).as_posix())
-    with directory.joinpath(constants.MODEL).open("rb") as f:
-        dill.dump(sampler, f)
+    with directory.joinpath(constants.MODEL).open("wb") as f:
+        dill.dump(model, f)
     image_grid.save(directory.joinpath(constants.VAE_EXAMPLES))
 
 
