@@ -160,7 +160,7 @@ class ConditionalVariationalAutoencoder(VariationalAutoEncoder):
         model = self.model
         guide = self.guide
         criterion = pyro.infer.Trace_ELBO()
-        optim = pyro.optim.Adam({"lr": 5e-4})
+        optim = pyro.optim.ClippedAdam({"lr": 5e-4, "weight_decay": 1})
         svi = pyro.infer.SVI(model=model, guide=guide, optim=optim, loss=criterion)
         losses = []
         for epoch in range(epochs):
