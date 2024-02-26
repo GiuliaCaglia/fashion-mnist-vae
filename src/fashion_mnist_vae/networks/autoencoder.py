@@ -17,7 +17,7 @@ class AutoEncoder(nn.Module):
         self.mainline = nn.Sequential(
             networks.Encoder(thickness=self.THICKNESS, latent_space=self.LATENT_SPACE),
             networks.Decoder(thickness=self.THICKNESS, latent_space=self.LATENT_SPACE),
-        )
+        ).to(device)
 
         self.optimizer = optim.Adam(self.parameters(), lr=5e-3)
         self.criterion = nn.MSELoss()
@@ -30,13 +30,13 @@ class AutoEncoder(nn.Module):
         losses = []
         for epoch in range(epochs):
             epoch_loss = 0
-            for batch in data_loader:
+            for x, _ in data_loader:
                 self.optimizer.zero_grad()
-                X_hat = self.forward(batch.to(self.device))
-                loss = self.criterion(X_hat, batch)
+                X_hat = self.forward(x.to(self.device))
+                loss = self.criterion(X_hat, x.to(self.device))
                 loss.backward()
                 self.optimizer.step()
-                epoch_loss += float(loss) / len(batch)
+                epoch_loss += float(loss) / len(x)
             losses.append(epoch_loss)
             print("Epoch: {}/{}; Loss: {}".format(epoch + 1, epochs, epoch_loss))
 
@@ -68,10 +68,10 @@ class VariationalAutoEncoder(nn.Module):
     def model(self, x):
         x = x.to(self.device)
         pyro.module("decoder", self.decoder)
-        z_loc = torch.zeros(len(x), self.LATENT_SPACE).to(self.device)
-        z_scale = torch.ones(len(x), self.LATENT_SPACE).to(self.device)
 
         with pyro.plate("data", len(x), subsample_size=len(x)):
+            z_loc = torch.zeros(len(x), self.LATENT_SPACE).to(self.device)
+            z_scale = torch.ones(len(x), self.LATENT_SPACE).to(self.device)
             z = pyro.sample("latent_space", dist.Normal(z_loc, z_scale).to_event(1))
             loc_out = self.decoder(z)
             pyro.sample(
@@ -85,7 +85,7 @@ class VariationalAutoEncoder(nn.Module):
         model = self.model
         guide = self.guide
         criterion = pyro.infer.Trace_ELBO()
-        optim = pyro.optim.Adam({"lr": 5e-4})
+        optim = pyro.optim.ClippedAdam({"lr": 5e-4, "weight_decay": 1})
         svi = pyro.infer.SVI(model=model, guide=guide, loss=criterion, optim=optim)
         losses = []
         for epoch in range(epochs):
@@ -160,7 +160,7 @@ class ConditionalVariationalAutoencoder(VariationalAutoEncoder):
         model = self.model
         guide = self.guide
         criterion = pyro.infer.Trace_ELBO()
-        optim = pyro.optim.Adam({"lr": 5e-4})
+        optim = pyro.optim.ClippedAdam({"lr": 5e-4, "weight_decay": 1})
         svi = pyro.infer.SVI(model=model, guide=guide, optim=optim, loss=criterion)
         losses = []
         for epoch in range(epochs):

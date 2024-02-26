@@ -2,24 +2,26 @@
 
 import argparse
 import sys
+from typing import Literal
 
 import matplotlib.pyplot as plt
 import torch
 from torch.utils import data
 from torchvision.datasets import FashionMNIST
-from torchvision.transforms import ToTensor
 
 from fashion_mnist_vae.networks import autoencoder
 from fashion_mnist_vae.utils import constants, utils
 
 
-def main(device: str = "cpu", batch_size: int = 128, epochs: int = 50):
+def main(
+    device: Literal["cpu", "cuda"] = "cpu", batch_size: int = 128, epochs: int = 50
+):
     # Load Data
     print("Loading data...")
     dataset = FashionMNIST(
         root=constants.ASSETS_DIR, transform=utils.to_tensor, download=True, train=True
     )
-    samples_x = torch.cat([dataset[i][0] for i in range(25)], dim=0)
+    samples_x = torch.stack([dataset[i][0] for i in range(25)], dim=0)
 
     # Preprocess Data
     print("Preprocessing data...")
