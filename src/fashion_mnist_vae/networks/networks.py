@@ -113,7 +113,7 @@ class Decoder(nn.Module):
             nn.ConvTranspose2d(
                 in_channels=thickness, out_channels=1, kernel_size=3, padding=1
             ),
-            nn.LeakyReLU(),
+            nn.Sigmoid(),
         )
 
     def forward(self, X):

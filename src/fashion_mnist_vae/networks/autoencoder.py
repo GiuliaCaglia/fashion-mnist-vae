@@ -78,7 +78,7 @@ class VariationalAutoEncoder(nn.Module):
                 "obs", dist.ContinuousBernoulli(probs=loc_out).to_event(3), obs=x
             )
 
-            return loc_out
+        return loc_out
 
     def train(self, data_loader, epochs) -> List[float]:
         pyro.clear_param_store()
@@ -132,7 +132,7 @@ class ConditionalVariationalAutoencoder(VariationalAutoEncoder):
                 "obs", dist.ContinuousBernoulli(probs=loc_out).to_event(3), obs=x
             )
 
-            return loc_out
+        return loc_out
 
     def guide(self, x, y):
         x = x.to(self.device)
