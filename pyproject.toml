@@ -1,8 +1,8 @@
 [tool.poetry]
 name = "fashion-mnist-vae"
 version = "0.1.0"
-description = ""
-authors = ["Your Name <you@example.com>"]
+description = "Train different forms of Variational Autoencoders (VAEs) on the Fashion MNIST dataset."
+authors = ["Giulia Caglia <cagliagiulia42@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
@@ -12,7 +12,6 @@ pandas = "^2.1.4"
 matplotlib = "^3.8.2"
 pillow = "^10.2.0"
 pyro-ppl = "^1.8.6"
-seaborn = "^0.13.2"
 torchvision = "^0.17.0"
 dill = "^0.3.8"
 
@@ -20,7 +19,6 @@ dill = "^0.3.8"
 [tool.poetry.group.dev.dependencies]
 black = "^23.12.1"
 isort = "^5.13.2"
-mypy = "^1.8.0"
 
 
 [tool.poetry.group.local-dev.dependencies]
