@@ -8,7 +8,7 @@ The work in this repository is heavily inspired by the VAE Tutorials found in th
 
 For an introduction to VAEs with Pyro, please see [here](https://pyro.ai/examples/vae.html).
 
-For a more general introduction to Pyro with an example implementation of a VAE for the MNIST Digits dataset, including exercises and solutions, please see [here](https://github.com/GiuliaCaglia/introduction-to-pyro-pyladies).
+For a more general introduction to Pyro with an example implementation of a VAE for the MNIST Digits dataset, including exercises and solutions, please see [here](https://github.com/pyladiesams/pyro-may2023).
 
 ## Getting Started
 ### Dependencies
