@@ -1,7 +1,8 @@
-from typing import Tuple
+from typing import List, Tuple
 
 import torch
 from PIL import Image
+from pyro.infer import Trace_ELBO
 from torchvision.transforms import ToTensor
 
 
@@ -22,3 +23,14 @@ def to_tensor(image: Image) -> torch.tensor:
     tensor = transform(image).reshape(1, 28, 28)
 
     return tensor
+
+
+class FreeEnergyLoss(Trace_ELBO):
+    """Modification of Trace_ELBO to include sum of logdet-Jacobians."""
+
+    def loss(self, model, guide, jacobians: torch.tensor, *args, **kwargs):
+        """Compute ELBO loss and add sum of jacobians along first axis."""
+        trace_elbo_loss = super().loss(model, guide, *args, **kwargs)
+        sum_jacobians = torch.sum(jacobians, axis=0)
+
+        return trace_elbo_loss + sum_jacobians
