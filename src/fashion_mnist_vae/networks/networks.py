@@ -123,3 +123,16 @@ class Decoder(nn.Module):
         )
         out = self.mainline(out)
         return out
+
+
+class NormalizingFlow(nn.Module):
+    """Implements planar normalizing flow."""
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.scale = nn.Parameter(1)
+        self.layer = nn.Sequential(nn.Linear(bias=True), nn.Tanh())
+
+    def forward(self, z):
+        """Modify z as part of normalizing flow."""
+        return z + self.scale * self.layer(z)
