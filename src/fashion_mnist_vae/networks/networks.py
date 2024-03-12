@@ -131,8 +131,27 @@ class NormalizingFlow(nn.Module):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.scale = nn.Parameter(1)
-        self.layer = nn.Sequential(nn.Linear(bias=True), nn.Tanh())
+        self.activation = nn.Tanh()
+        self.activation_derivative = lambda x: 1 - torch.pow(self.activation(x), 2)
+        self.fc = nn.Linear(bias=True)
+
+        self.layer = nn.Sequential(self.fc, self.activation)
 
     def forward(self, z):
         """Modify z as part of normalizing flow."""
         return z + self.scale * self.layer(z)
+
+
+class LogDetJacobian(nn.Module):
+    """Computes log-det Jacobian for normalizing flow."""
+
+    def __init__(self, sister: NormalizingFlow) -> None:
+        super().__init__()
+        self.sister = sister
+
+    def forward(self, z):
+        """Calculate logdet-Jacobian for sister layer."""
+        psi = self.sister.activation_derivative(self.sister.fc(z))
+        jacobian = 1 + torch.matmul(self.sister.scale.transpose(), psi)
+
+        return jacobian
