@@ -6,6 +6,7 @@ import torch
 from torch import nn, optim
 
 from fashion_mnist_vae.networks import networks
+from fashion_mnist_vae.utils import utils
 
 
 class AutoEncoder(nn.Module):
@@ -73,7 +74,8 @@ class VariationalAutoEncoder(nn.Module):
             z_loc = torch.zeros(len(x), self.LATENT_SPACE).to(self.device)
             z_scale = torch.ones(len(x), self.LATENT_SPACE).to(self.device)
             z = pyro.sample("latent_space", dist.Normal(z_loc, z_scale).to_event(1))
-            loc_out = self.decoder(z)
+            z_prime = self.transform_z(z)
+            loc_out = self.decoder(z_prime)
             pyro.sample(
                 "obs", dist.ContinuousBernoulli(probs=loc_out).to_event(3), obs=x
             )
@@ -97,6 +99,9 @@ class VariationalAutoEncoder(nn.Module):
             losses.append(epoch_loss)
 
         return losses
+
+    def transform_z(self, z):
+        return z
 
 
 class ConditionalVariationalAutoencoder(VariationalAutoEncoder):
@@ -172,3 +177,37 @@ class ConditionalVariationalAutoencoder(VariationalAutoEncoder):
             losses.append(epoch_loss)
 
         return losses
+
+
+class NormalizingFlowAutoencoder(VariationalAutoEncoder):
+    """Special VAE implementing normalizing flows.
+
+    Normalizing flows have been suggested by Rezende & Mohamed (2015):
+    http://proceedings.mlr.press/v37/rezende15.pdf
+    """
+
+    JACOBIAN = networks.LogDetJacobian
+
+    def __init__(self, device: Literal["cpu", "cuda"] = "cpu"):
+        super().__init__(device)
+        self.normalizing_flows: nn.Sequential
+
+    def add_normalizing_flows(
+        self,
+        flows: nn.Sequential,
+    ):
+        self.normalizing_flows = flows
+
+    def transform_z(self, z):
+        z_out = z.clone()
+        log_det_jacobians = torch.zeros_like(z_out)
+        try:
+            for flow in self.normalizing_flows:
+                z_out = flow(z_out)
+                jacobian = self.JACOBIAN(flow)(z_out)
+                log_det_jacobians += jacobian
+        except AttributeError as e:
+            raise AttributeError("No normalizing flows added!!") from e
+
+        pyro.factor("log_det_jacobians", log_factor=log_det_jacobians * -1)
+        return z_out
