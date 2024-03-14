@@ -15,6 +15,7 @@ pyro-ppl = "^1.8.6"
 torchvision = "^0.17.0"
 dill = "^0.3.8"
 click = "^8.1.7"
+zuko = "^1.1.0"
 
 
 [tool.poetry.group.dev.dependencies]

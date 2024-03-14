@@ -3083,7 +3083,22 @@ docs = ["Sphinx (>=6.0)", "sphinx-rtd-theme (>=1.1.0)"]
 optional = ["python-socks", "wsaccel"]
 test = ["websockets"]
 
+[[package]]
+name = "zuko"
+version = "1.1.0"
+description = "Normalizing flows in PyTorch"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "zuko-1.1.0-py3-none-any.whl", hash = "sha256:7794969a8bb6e42ba3b721a128c62b3a2a63836b78db843b7e5defd0dfd572a8"},
+    {file = "zuko-1.1.0.tar.gz", hash = "sha256:cd282dbbb4c845d2a104070b7780f128420b27296fda5b1731f0c84dbc99388e"},
+]
+
+[package.dependencies]
+numpy = ">=1.20.0"
+torch = ">=1.12.0"
+
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "1733b4c5ca853ed3b9b6669710215c22883fc79a5c48e8506e5bc2ef9413227e"
+content-hash = "f5089295c919ce6599b846b3412793507b294c469fcc93d11f76ed22b35f05e3"

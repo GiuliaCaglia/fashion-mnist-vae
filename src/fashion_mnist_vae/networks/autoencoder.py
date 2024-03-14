@@ -200,7 +200,7 @@ class NormalizingFlowAutoencoder(VariationalAutoEncoder):
 
     def transform_z(self, z):
         z_out = z.clone()
-        log_det_jacobians = torch.zeros_like(z_out)
+        log_det_jacobians = torch.zeros(z_out.shape[0], 1)
         try:
             for flow in self.normalizing_flows:
                 z_out = flow(z_out)
