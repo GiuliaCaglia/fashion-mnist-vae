@@ -23,7 +23,9 @@ def train(epochs: int, device: Literal["cpu", "cuda"], flow_depth: int):
 
     # Train Model
     model = autoencoder.NormalizingFlowAutoencoder(device=device)
-    flows = nn.Sequential(*[networks.NormalizingFlow(z_dim=model.LATENT_SPACE) for _ in range(flow_depth)])
+    flows = nn.Sequential(
+        *[networks.NormalizingFlow(z_dim=model.LATENT_SPACE) for _ in range(flow_depth)]
+    )
     model.add_normalizing_flows(flows)
     losses = model.train(data_loader=data_loader, epochs=epochs)
 

@@ -198,6 +198,10 @@ class NormalizingFlowAutoencoder(VariationalAutoEncoder):
     ):
         self.normalizing_flows = flows
 
+    def model(self, x):
+        pyro.module("normalizing_flow", self.normalizing_flows)
+        return super().model(x)
+
     def transform_z(self, z):
         z_out = z.clone()
         log_det_jacobians = torch.zeros(z_out.shape[0], 1)
@@ -209,5 +213,4 @@ class NormalizingFlowAutoencoder(VariationalAutoEncoder):
         except AttributeError as e:
             raise AttributeError("No normalizing flows added!!") from e
 
-        pyro.factor("log_det_jacobians", log_factor=log_det_jacobians * -1)
         return z_out
