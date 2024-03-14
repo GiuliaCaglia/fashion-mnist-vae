@@ -3,10 +3,11 @@ from typing import List, Literal
 import pyro
 import pyro.distributions as dist
 import torch
+import zuko
+from pyro.contrib.zuko import ZukoToPyro
 from torch import nn, optim
 
 from fashion_mnist_vae.networks import networks
-from fashion_mnist_vae.utils import utils
 
 
 class AutoEncoder(nn.Module):
@@ -73,9 +74,8 @@ class VariationalAutoEncoder(nn.Module):
         with pyro.plate("data", len(x), subsample_size=len(x)):
             z_loc = torch.zeros(len(x), self.LATENT_SPACE).to(self.device)
             z_scale = torch.ones(len(x), self.LATENT_SPACE).to(self.device)
-            z = pyro.sample("latent_space", dist.Normal(z_loc, z_scale).to_event(1))
-            z_prime = self.transform_z(z)
-            loc_out = self.decoder(z_prime)
+            z = self.get_z(z_loc, z_scale)
+            loc_out = self.decoder(z)
             pyro.sample(
                 "obs", dist.ContinuousBernoulli(probs=loc_out).to_event(3), obs=x
             )
@@ -100,8 +100,8 @@ class VariationalAutoEncoder(nn.Module):
 
         return losses
 
-    def transform_z(self, z):
-        return z
+    def get_z(self, *args):
+        return pyro.sample("latent_space", dist.Normal(args[0], args[1]).to_event(1))
 
 
 class ConditionalVariationalAutoencoder(VariationalAutoEncoder):
@@ -180,34 +180,22 @@ class ConditionalVariationalAutoencoder(VariationalAutoEncoder):
 
 
 class NormalizingFlowAutoencoder(VariationalAutoEncoder):
-    """Special VAE implementing normalizing flows.
+    """Special VAE implementing normalizing flows suing Zuko.
 
     Normalizing flows have been suggested by Rezende & Mohamed (2015):
     http://proceedings.mlr.press/v37/rezende15.pdf
+
+    The current implementation is based on:
+    [Citation needed for flow type]
     """
 
-    JACOBIAN = networks.LogDetJacobian
-
-    def __init__(self, device: Literal["cpu", "cuda"] = "cpu"):
+    def __init__(self, device: Literal["cpu", "cuda"] = "cpu", flow_lenght: int = 3):
         super().__init__(device)
-        self.normalizing_flows: nn.Sequential
+        self.normalizing_flow = zuko.flows.MAF(
+            features=self.LATENT_SPACE,
+            transforms=flow_lenght,
+            hidden_features=(256, 256),
+        )
 
-    def add_normalizing_flows(
-        self,
-        flows: nn.Sequential,
-    ):
-        self.normalizing_flows = flows
-
-    def transform_z(self, z):
-        z_out = z.clone()
-        log_det_jacobians = torch.zeros(z_out.shape[0], 1)
-        try:
-            for flow in self.normalizing_flows:
-                z_out = flow(z_out)
-                jacobian = self.JACOBIAN(flow)(z_out)
-                log_det_jacobians += jacobian
-        except AttributeError as e:
-            raise AttributeError("No normalizing flows added!!") from e
-
-        pyro.factor("log_det_jacobians", log_factor=log_det_jacobians * -1)
-        return z_out
+    def get_z(self, *args):
+        return pyro.sample("latent_space", ZukoToPyro(self.normalizing_flow()))

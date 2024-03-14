@@ -22,9 +22,9 @@ def train(epochs: int, device: Literal["cpu", "cuda"], flow_depth: int):
     data_loader = utils.DataManager.get_data_loader(dataset)
 
     # Train Model
-    model = autoencoder.NormalizingFlowAutoencoder(device=device)
-    flows = nn.Sequential(*[networks.NormalizingFlow(z_dim=model.LATENT_SPACE) for _ in range(flow_depth)])
-    model.add_normalizing_flows(flows)
+    model = autoencoder.NormalizingFlowAutoencoder(
+        device=device, flow_lenght=flow_depth
+    )
     losses = model.train(data_loader=data_loader, epochs=epochs)
 
     sampler = pyro.infer.Predictive(model=model.model, guide=model.guide, num_samples=1)
