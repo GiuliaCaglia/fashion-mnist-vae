@@ -195,7 +195,7 @@ class NormalizingFlowAutoencoder(VariationalAutoEncoder):
             features=self.LATENT_SPACE,
             transforms=flow_lenght,
             hidden_features=(256, 256),
-        )
+        ).to(device=device)
 
     def get_z(self, *args):
         return pyro.sample("latent_space", ZukoToPyro(self.normalizing_flow()))
