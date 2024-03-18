@@ -131,7 +131,7 @@ class ConditionalVariationalAutoencoder(VariationalAutoEncoder):
         z_loc, z_scale = self.prior_net(z_base)
 
         with pyro.plate("data", len(x), subsample_size=len(x)):
-            z = pyro.sample("latent_space", dist.Normal(z_loc, z_scale).to_event(1))
+            z = self.get_z(z_loc, z_scale)
             loc_out = self.decoder(z)
             pyro.sample(
                 "obs", dist.ContinuousBernoulli(probs=loc_out).to_event(3), obs=x
@@ -192,6 +192,23 @@ class NormalizingFlowAutoencoder(VariationalAutoEncoder):
     """
 
     def __init__(self, device: Literal["cpu", "cuda"] = "cpu", flow_lenght: int = 3):
+        super().__init__(device)
+        self.normalizing_flow = zuko.flows.MAF(
+            features=self.LATENT_SPACE,
+            transforms=flow_lenght,
+            hidden_features=(256, 256),
+        ).to(device=device)
+
+    def get_z(self, *args):
+        return pyro.sample("latent_space", ZukoToPyro(self.normalizing_flow()))
+
+
+class CNFVAE(ConditionalVariationalAutoencoder):
+    """Implements normalizing flow for conditional architecture."""
+
+    def __init__(
+        self, device: Literal["cpu"] | Literal["cuda"] = "cpu", flow_lenght: int = 3
+    ):
         super().__init__(device)
         self.normalizing_flow = zuko.flows.MAF(
             features=self.LATENT_SPACE,
