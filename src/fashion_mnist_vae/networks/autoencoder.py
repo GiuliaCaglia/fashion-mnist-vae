@@ -186,7 +186,9 @@ class NormalizingFlowAutoencoder(VariationalAutoEncoder):
     http://proceedings.mlr.press/v37/rezende15.pdf
 
     The current implementation is based on:
-    [Citation needed for flow type]
+    Papamakarios, George, Theo Pavlakou, and Iain Murray.
+    "Masked autoregressive flow for density estimation."
+    Advances in neural information processing systems 30 (2017).
     """
 
     def __init__(self, device: Literal["cpu", "cuda"] = "cpu", flow_lenght: int = 3):
