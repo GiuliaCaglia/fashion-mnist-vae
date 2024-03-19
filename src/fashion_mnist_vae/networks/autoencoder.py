@@ -212,9 +212,10 @@ class CNFVAE(ConditionalVariationalAutoencoder):
         super().__init__(device)
         self.normalizing_flow = zuko.flows.MAF(
             features=self.LATENT_SPACE,
+            context=self.LATENT_SPACE,
             transforms=flow_lenght,
             hidden_features=(256, 256),
         ).to(device=device)
 
     def get_z(self, *args):
-        return pyro.sample("latent_space", ZukoToPyro(self.normalizing_flow()))
+        return pyro.sample("latent_space", ZukoToPyro(self.normalizing_flow(args[0])))
